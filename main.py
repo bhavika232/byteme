@@ -26,17 +26,21 @@ latest_records = []
 def refresh_telemetry():
     global latest_payload, latest_records
     print("[scheduler] Refreshing telemetry...")
-    raw = collect_telemetry()
-    latest_payload = build_ml_payload(raw)
-    latest_records = latest_payload.get("records", [])
-    dispatch(latest_payload)
-    print("[scheduler] Done.")
+    try:
+        raw = collect_telemetry()
+        latest_payload = build_ml_payload(raw)
+        latest_records = latest_payload.get("records", [])
+        dispatch(latest_payload)
+        print("[scheduler] Done.")
+    except Exception as e:
+        print(f"[scheduler] Failed to refresh: {e}")
 
-refresh_telemetry()
-
-scheduler = BackgroundScheduler()
-scheduler.add_job(refresh_telemetry, "interval", minutes=5)
-scheduler.start()
+@app.on_event("startup")
+def startup_event():
+    refresh_telemetry()
+    scheduler = BackgroundScheduler()
+    scheduler.add_job(refresh_telemetry, "interval", minutes=5)
+    scheduler.start()
 
 
 @app.get("/")
