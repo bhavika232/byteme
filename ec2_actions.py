@@ -1,9 +1,15 @@
+import os
 import boto3
 
 EC2_INSTANCE_ID = "i-0c46dfa3a28a086d0"  # replace with your actual instance ID
 REGION = "us-east-2"
 
-ec2 = boto3.client('ec2', region_name=REGION)
+ec2 = boto3.client(
+    'ec2',
+    region_name=REGION,
+    aws_access_key_id=os.environ.get('AWS_ACCESS_KEY_ID'),
+    aws_secret_access_key=os.environ.get('AWS_SECRET_ACCESS_KEY')
+)
 
 def stop_ec2():
     response = ec2.stop_instances(InstanceIds=[EC2_INSTANCE_ID])
