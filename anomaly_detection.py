@@ -12,8 +12,7 @@ USE_TEAMMATE = True
 BUCKET_NAME = "your-bucket-name"
 AWS_REGION  = "us-east-1"
 USD_TO_INR  = 83
-TEAMMATE_URL = "http://172.20.10.2:8000/telemetry"
-
+TEAMMATE_URL = "https://byteme-1.onrender.com/telemetry"
 
 def generate_simulated_data(days=30):
     data = []
