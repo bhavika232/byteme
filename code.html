@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>CloudOptim | Observational Monolith</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#1D4ED8",
+                        "primary-hover": "#1E40AF",
+                        "secondary": "#059669",
+                        "tertiary": "#ef4444",
+                        "background": "#020617",
+                        "surface": "#0f172a",
+                        "on-surface": "#f8fafc",
+                        "on-surface-variant": "#94a3b8",
+                        "outline": "#1e293b",
+                    },
+                    fontFamily: {
+                        "headline": ["Manrope"],
+                        "body": ["Inter"],
+                        "label": ["Inter"]
+                    },
+                    borderRadius: {"DEFAULT": "0.125rem", "lg": "0.375rem", "xl": "0.5rem", "2xl": "1rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style>
+        body { font-family: 'Inter', sans-serif; background-color: #020617; color: #f8fafc; }
+        .font-headline { font-family: 'Manrope', sans-serif; }
+        .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; color: #94a3b8; }
+        .glass-panel { backdrop-filter: blur(12px); background: rgba(15, 23, 42, 0.8); }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .reason-block {
+            max-height: 0;
+            opacity: 0;
+            overflow: hidden;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .instance-card:hover .reason-block {
+            max-height: 100px;
+            opacity: 1;
+            margin-bottom: 1rem;
+        }
+        #cpu-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            background: #1D4ED8;
+            cursor: pointer;
+            border-radius: 50%;
+            border: 2px solid #0f172a;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.5);
+        }
+        .live-dot {
+            width: 8px; height: 8px;
+            background: #059669;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 6px;
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+    </style>
+</head>
+<body class="bg-background text-on-surface selection:bg-primary/20 min-h-screen">
+<!-- TopNavBar -->
+<header class="fixed top-0 left-0 w-full flex justify-between items-center px-8 py-4 backdrop-blur-xl bg-background/80 z-50 border-b border-outline">
+<div class="flex items-center gap-8">
+<span class="text-xl font-extrabold tracking-tighter text-on-surface font-headline">CloudOptim</span>
+<nav class="hidden md:flex items-center gap-6">
+<a class="text-primary border-b-2 border-primary pb-1 font-headline font-bold text-sm tracking-tight" href="#">Dashboard</a>
+<a class="text-on-surface-variant hover:text-on-surface transition-colors font-headline font-bold text-sm tracking-tight" href="#">Infrastructure</a>
+<a class="text-on-surface-variant hover:text-on-surface transition-colors font-headline font-bold text-sm tracking-tight" href="#">Savings</a>
+<a class="text-on-surface-variant hover:text-on-surface transition-colors font-headline font-bold text-sm tracking-tight" href="#">Reports</a>
+</nav>
+</div>
+<div class="flex items-center gap-4">
+<!-- Live indicator -->
+<div class="flex items-center text-xs text-secondary font-bold">
+<span class="live-dot"></span> LIVE
+</div>
+<button class="px-5 py-2.5 bg-primary hover:bg-primary-hover text-white text-xs font-bold rounded-lg transition-all active:scale-95 shadow-sm" onclick="fetchAllData()">
+            Refresh Data
+        </button>
+</div>
+</header>
+<!-- SideNavBar -->
+<aside class="fixed left-0 top-0 h-full w-64 bg-surface hidden lg:flex flex-col py-8 z-40 border-r border-outline pt-24">
+<div class="px-6 mb-8">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-lg bg-slate-800 flex items-center justify-center">
+<span class="material-symbols-outlined">auto_awesome</span>
+</div>
+<div>
+<p class="text-lg font-black text-on-surface leading-none">CloudOptim</p>
+<p class="text-[10px] text-on-surface-variant uppercase tracking-widest mt-1">Observational Monolith</p>
+</div>
+</div>
+</div>
+<nav class="flex-1 space-y-1">
+<a class="flex items-center gap-3 text-on-surface-variant hover:text-on-surface px-6 py-3 hover:bg-slate-800/50 transition-all group" href="#">
+<span class="material-symbols-outlined group-hover:translate-x-1 transition-transform">memory</span>
+<span class="font-body font-medium text-sm">Instances</span>
+</a>
+<a class="flex items-center gap-3 text-on-surface-variant hover:text-on-surface px-6 py-3 hover:bg-slate-800/50 transition-all group" href="#">
+<span class="material-symbols-outlined group-hover:translate-x-1 transition-transform">auto_awesome</span>
+<span class="font-body font-medium text-sm">Optimization</span>
+</a>
+<a class="flex items-center gap-3 text-on-surface-variant hover:text-on-surface px-6 py-3 hover:bg-slate-800/50 transition-all group" href="#">
+<span class="material-symbols-outlined group-hover:translate-x-1 transition-transform">show_chart</span>
+<span class="font-body font-medium text-sm">Forecasts</span>
+</a>
+<a class="flex items-center gap-3 text-on-surface-variant hover:text-on-surface px-6 py-3 hover:bg-slate-800/50 transition-all group" href="#">
+<span class="material-symbols-outlined group-hover:translate-x-1 transition-transform">security</span>
+<span class="font-body font-medium text-sm">Security</span>
+</a>
+</nav>
+<div class="px-6 mt-auto space-y-4">
+<button class="w-full py-3 bg-primary hover:bg-primary-hover text-white rounded-xl text-xs font-bold transition-all shadow-sm">
+            Upgrade Plan
+        </button>
+<div class="space-y-1">
+<a class="flex items-center gap-3 text-on-surface-variant hover:text-on-surface text-xs py-2" href="#">
+<span class="material-symbols-outlined !text-sm">help</span> Support
+            </a>
+<a class="flex items-center gap-3 text-on-surface-variant hover:text-on-surface text-xs py-2" href="#">
+<span class="material-symbols-outlined !text-sm">description</span> Documentation
+            </a>
+</div>
+</div>
+</aside>
+<!-- Main Content -->
+<main class="lg:ml-64 pt-24 px-8 pb-12">
+<!-- Metric Cards -->
+<div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-10">
+<div class="bg-surface rounded-2xl border border-outline flex flex-col justify-between p-6 shadow-sm">
+<div class="flex justify-between items-start mb-4">
+<span class="text-on-surface-variant text-sm font-medium">Active Instances</span>
+<span class="material-symbols-outlined">dns</span>
+</div>
+<div class="text-3xl font-headline font-bold text-on-surface" id="active-instances">--</div>
+<div class="mt-2 flex items-center gap-1 text-on-surface-variant text-xs font-bold">
+<span class="material-symbols-outlined !text-on-surface-variant !text-xs">arrow_upward</span>
+<span id="active-instances-sub">Loading live data...</span>
+</div>
+</div>
+<div class="bg-surface rounded-2xl border border-outline flex flex-col justify-between p-6 shadow-sm">
+<div class="flex justify-between items-start mb-4">
+<span class="text-on-surface-variant text-sm font-medium">Idle Resources</span>
+<span class="material-symbols-outlined">warning</span>
+</div>
+<div class="text-3xl font-headline font-bold text-on-surface" id="idle-instances">--</div>
+<div class="mt-2 flex items-center gap-1 text-tertiary text-xs font-bold">
+<span class="material-symbols-outlined !text-tertiary !text-xs">trending_up</span>
+<span id="idle-instances-sub">Loading...</span>
+</div>
+</div>
+<div class="bg-surface rounded-2xl border border-outline flex flex-col justify-between p-6 shadow-sm">
+<div class="flex justify-between items-start mb-4">
+<span class="text-on-surface-variant text-sm font-medium">Est. Monthly Savings</span>
+<span class="material-symbols-outlined">savings</span>
+</div>
+<div class="text-3xl font-headline font-bold text-secondary" id="est-savings">$--</div>
+<div class="mt-2 flex items-center gap-1 text-secondary text-xs font-bold">
+<span class="material-symbols-outlined !text-secondary !text-xs">check_circle</span>
+<span>Ready to claim</span>
+</div>
+</div>
+<div class="bg-surface rounded-2xl border border-outline flex flex-col justify-between p-6 shadow-sm">
+<div class="flex justify-between items-start mb-4">
+<span class="text-on-surface-variant text-sm font-medium">Avg CPU Utilization</span>
+<span class="material-symbols-outlined">auto_awesome</span>
+</div>
+<div class="text-3xl font-headline font-bold text-on-surface"><span id="avg-cpu">--</span><span class="text-lg text-on-surface-variant">%</span></div>
+<div class="mt-4 w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
+<div class="bg-primary h-full" id="cpu-bar" style="width: 0%"></div>
+</div>
+</div>
+</div>
+<div class="grid grid-cols-12 gap-8">
+<!-- Main Content Left -->
+<div class="col-span-12 xl:col-span-8 space-y-8">
+<div class="bg-surface rounded-2xl p-8 border border-outline shadow-sm relative">
+<div class="flex justify-between items-end mb-8">
+<div>
+<h2 class="text-2xl font-headline font-extrabold text-on-surface tracking-tight">Cost Overview</h2>
+<p class="text-on-surface-variant text-sm mt-1">Cost efficiency relative to CPU Idle Threshold</p>
+</div>
+<div class="flex items-center gap-4">
+<div class="flex items-center gap-2">
+<span class="w-2.5 h-2.5 rounded-full bg-tertiary"></span>
+<span class="text-xs text-on-surface-variant font-medium">Current Cost</span>
+</div>
+<div class="flex items-center gap-2">
+<span class="w-2.5 h-2.5 rounded-full bg-secondary"></span>
+<span class="text-xs text-on-surface-variant font-medium">Optimized Cost</span>
+</div>
+</div>
+</div>
+<div class="bg-background rounded-xl relative mb-8 overflow-hidden h-72 border border-outline shadow-[inset_0_1px_2px_rgba(0,0,0,0.4)]">
+<div class="absolute left-6 top-6 text-[10px] text-on-surface-variant font-medium space-y-8 flex flex-col items-end z-10">
+<span>$1000</span><span>$750</span><span>$500</span><span>$250</span><span>$0</span>
+</div>
+<svg class="w-full h-full pl-12 pb-6" preserveAspectRatio="none" viewBox="0 0 800 200">
+<defs>
+<linearGradient id="colorOptimized" x1="0" x2="0" y1="0" y2="1">
+<stop offset="5%" stop-color="#059669" stop-opacity="0.2"></stop>
+<stop offset="95%" stop-color="#059669" stop-opacity="0"></stop>
+</linearGradient>
+<linearGradient id="colorCurrent" x1="0" x2="0" y1="0" y2="1">
+<stop offset="5%" stop-color="#ef4444" stop-opacity="0.2"></stop>
+<stop offset="95%" stop-color="#ef4444" stop-opacity="0"></stop>
+</linearGradient>
+</defs>
+<line stroke="#1e293b" stroke-dasharray="3 3" x1="0" x2="800" y1="0" y2="0"></line>
+<line stroke="#1e293b" stroke-dasharray="3 3" x1="0" x2="800" y1="50" y2="50"></line>
+<line stroke="#1e293b" stroke-dasharray="3 3" x1="0" x2="800" y1="100" y2="100"></line>
+<line stroke="#1e293b" stroke-dasharray="3 3" x1="0" x2="800" y1="150" y2="150"></line>
+<line stroke="#1e293b" x1="0" x2="800" y1="200" y2="200"></line>
+<path d="M0 180 C 100 178, 200 175, 300 170 C 400 160, 500 165, 600 155 C 700 150, 800 140, 800 140 L 800 200 L 0 200 Z" fill="url(#colorOptimized)"></path>
+<path d="M0 80 C 100 75, 200 85, 300 70 C 400 60, 500 65, 600 55 C 700 50, 800 40, 800 40 L 800 200 L 0 200 Z" fill="url(#colorCurrent)"></path>
+<path d="M0 80 C 100 75, 200 85, 300 70 C 400 60, 500 65, 600 55 C 700 50, 800 40, 800 40" fill="none" stroke="#ef4444" stroke-linecap="round" stroke-opacity="1" stroke-width="2.5"></path>
+<path d="M0 180 C 100 178, 200 175, 300 170 C 400 160, 500 165, 600 155 C 700 150, 800 140, 800 140" fill="none" stroke="#059669" stroke-linecap="round" stroke-width="2.5"></path>
+</svg>
+<div class="absolute bottom-4 left-16 right-6 flex justify-between text-[9px] text-on-surface-variant font-semibold uppercase tracking-wider">
+<span>0% CPU</span><span>10%</span><span>20%</span><span>30%</span><span>40%</span><span>50%</span><span>60%</span><span>70%</span><span>80%</span><span>90%</span><span>100% CPU</span>
+</div>
+</div>
+<div class="bg-background rounded-xl p-6 border border-outline">
+<div class="flex justify-between mb-4">
+<label class="text-sm font-semibold text-on-surface">CPU Idle Threshold</label>
+<span class="text-primary font-bold" id="slider-label">15%</span>
+</div>
+<input class="w-full h-1.5 bg-slate-800 rounded-full appearance-none cursor-pointer" id="cpu-slider" max="100" min="0" type="range" value="15"/>
+<div class="flex justify-between mt-2 text-[10px] text-on-surface-variant uppercase tracking-widest font-bold">
+<span>Aggressive</span><span>Standard</span><span>Conservative</span>
+</div>
+</div>
+</div>
+
+<!-- Live Instance Table -->
+<div class="bg-surface rounded-2xl p-8 border border-outline shadow-sm">
+<div class="flex justify-between items-center mb-6">
+<h3 class="text-lg font-headline font-bold text-on-surface">Live EC2 Instances</h3>
+<span class="text-xs text-secondary font-bold flex items-center gap-1"><span class="live-dot"></span>Real-time from AWS</span>
+</div>
+<div id="instances-table">
+<div class="text-on-surface-variant text-sm text-center py-8">Fetching live data from AWS...</div>
+</div>
+</div>
+
+<!-- Infrastructure Recommendations -->
+<div>
+<h3 class="text-lg font-headline font-bold text-on-surface mb-6 px-1">Infrastructure Recommendations</h3>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6" id="recommendations-container">
+<!-- Populated by JS -->
+<div class="instance-card group bg-surface rounded-2xl transition-all duration-300 relative border border-outline flex flex-col justify-between p-6 overflow-hidden shadow-sm hover:shadow-md">
+<div class="reason-block bg-background text-white p-4 -mx-6 -mt-6 border-b border-outline">
+<p class="text-[11px] leading-relaxed"><span class="text-secondary font-bold">Reason:</span> CPU idle > 72h with zero memory pressure.</p>
+</div>
+<div class="flex justify-between items-start mb-4">
+<div>
+<p class="text-xs font-bold text-on-surface-variant mb-1">i-0a823f99b2</p>
+<h4 class="text-on-surface font-headline font-bold">Marketing-API-Prod</h4>
+</div>
+<div class="bg-background text-on-surface-variant text-[10px] font-bold px-2 py-1 rounded-md border border-outline">94% Confidence</div>
+</div>
+<div class="flex items-center gap-4 py-3 bg-background rounded-xl px-4 mb-4 border border-outline">
+<div class="text-center flex-1">
+<p class="text-[10px] text-on-surface-variant uppercase font-bold tracking-tight">Current</p>
+<p class="text-sm font-bold text-on-surface">t3.large</p>
+</div>
+<span class="material-symbols-outlined !text-on-surface-variant text-sm">arrow_forward</span>
+<div class="text-center flex-1">
+<p class="text-[10px] text-secondary uppercase font-bold tracking-tight">Target</p>
+<p class="text-sm font-bold text-secondary">t3.medium</p>
+</div>
+</div>
+<button class="w-full py-2.5 bg-primary hover:bg-primary-hover text-white text-xs font-bold rounded-lg opacity-0 group-hover:opacity-100 transition-all shadow-sm">Execute Downgrade</button>
+</div>
+<div class="instance-card group bg-surface rounded-2xl transition-all duration-300 relative border border-outline flex flex-col justify-between p-6 overflow-hidden shadow-sm hover:shadow-md">
+<div class="reason-block bg-background text-white p-4 -mx-6 -mt-6 border-b border-outline">
+<p class="text-[11px] leading-relaxed"><span class="text-secondary font-bold">Reason:</span> Instance idle with no network traffic for 48h.</p>
+</div>
+<div class="flex justify-between items-start mb-4">
+<div>
+<p class="text-xs font-bold text-on-surface-variant mb-1">i-05c21e11a0</p>
+<h4 class="text-on-surface font-headline font-bold">Legacy-Worker-04</h4>
+</div>
+<div class="bg-background text-on-surface-variant text-[10px] font-bold px-2 py-1 rounded-md border border-outline">88% Confidence</div>
+</div>
+<div class="flex items-center gap-4 py-3 bg-background rounded-xl px-4 mb-4 border border-outline">
+<div class="text-center flex-1">
+<p class="text-[10px] text-on-surface-variant uppercase font-bold tracking-tight">Current</p>
+<p class="text-sm font-bold text-on-surface">m5.xlarge</p>
+</div>
+<span class="material-symbols-outlined !text-on-surface-variant text-sm">arrow_forward</span>
+<div class="text-center flex-1">
+<p class="text-[10px] text-secondary uppercase font-bold tracking-tight">Target</p>
+<p class="text-sm font-bold text-secondary">m5.large</p>
+</div>
+</div>
+<button class="w-full py-2.5 bg-primary hover:bg-primary-hover text-white text-xs font-bold rounded-lg opacity-0 group-hover:opacity-100 transition-all shadow-sm">Execute Downgrade</button>
+</div>
+</div>
+</div>
+</div>
+
+<!-- Sidebar Right -->
+<div class="col-span-12 xl:col-span-4 space-y-8">
+
+<!-- Anomaly Feed from ML -->
+<div class="bg-surface rounded-2xl p-6 border border-outline shadow-sm">
+<div class="flex items-center gap-3 mb-4">
+<span class="material-symbols-outlined">monitor_heart</span>
+<h3 class="font-headline font-bold text-on-surface">Anomaly Detection</h3>
+</div>
+<div id="anomaly-feed">
+<div class="text-on-surface-variant text-xs text-center py-4">Loading anomaly data...</div>
+</div>
+</div>
+
+<div class="bg-surface rounded-2xl p-6 border border-outline shadow-sm">
+<div class="flex items-center gap-3 mb-6">
+<span class="material-symbols-outlined">nights_stay</span>
+<h3 class="font-headline font-bold text-on-surface">Sleep Mode</h3>
+</div>
+<div class="flex p-1 bg-background rounded-xl mb-6 border border-outline">
+<button class="flex-1 py-2 text-xs font-bold rounded-lg bg-surface shadow-sm text-primary transition-all" id="user-mode-btn">User Mode</button>
+<button class="flex-1 py-2 text-xs font-bold rounded-lg text-on-surface-variant hover:text-on-surface transition-all" id="auto-mode-btn">Auto Mode</button>
+</div>
+<div class="space-y-4" id="sleep-mode-manual-inputs">
+<div class="flex items-center justify-between p-3 bg-background border border-outline rounded-xl">
+<span class="text-xs text-on-surface-variant font-medium">Start Time</span>
+<input class="bg-transparent border-none p-0 text-sm font-bold text-on-surface focus:ring-0 text-right w-20 uppercase" id="startTime" type="time" value="22:00"/>
+</div>
+<div class="flex items-center justify-between p-3 bg-background border border-outline rounded-xl">
+<span class="text-xs text-on-surface-variant font-medium">End Time</span>
+<input class="bg-transparent border-none p-0 text-sm font-bold text-on-surface focus:ring-0 text-right w-20 uppercase" id="endTime" type="time" value="06:00"/>
+</div>
+</div>
+<div class="hidden" id="sleep-mode-auto-msg">
+<p class="mt-4 text-[10px] text-on-surface-variant font-medium italic text-center">ML Auto-pilot is monitoring for inactivity gaps.</p>
+</div>
+</div>
+<div class="bg-surface rounded-2xl p-6 border border-outline shadow-sm">
+<h3 class="font-headline font-bold text-on-surface mb-6">Risk Assessment</h3>
+<div class="space-y-4">
+<div class="flex items-center justify-between">
+<span class="text-sm text-on-surface-variant font-medium">Financial Risk</span>
+<div class="flex gap-1.5">
+<div class="w-2 h-2 rounded-full bg-secondary"></div>
+<div class="w-2 h-2 rounded-full bg-secondary"></div>
+<div class="w-2 h-2 rounded-full bg-slate-700"></div>
+</div>
+</div>
+<div class="flex items-center justify-between">
+<span class="text-sm text-on-surface-variant font-medium">Performance Risk</span>
+<div class="flex gap-1.5">
+<div class="w-2 h-2 rounded-full bg-tertiary"></div>
+<div class="w-2 h-2 rounded-full bg-slate-700"></div>
+<div class="w-2 h-2 rounded-full bg-slate-700"></div>
+</div>
+</div>
+<div class="flex items-center justify-between">
+<span class="text-sm text-on-surface-variant font-medium">Reliability Gap</span>
+<div class="flex gap-1.5">
+<div class="w-2 h-2 rounded-full bg-secondary"></div>
+<div class="w-2 h-2 rounded-full bg-slate-700"></div>
+<div class="w-2 h-2 rounded-full bg-slate-700"></div>
+</div>
+</div>
+</div>
+</div>
+<div class="bg-surface rounded-2xl p-6 border border-outline shadow-sm">
+<h3 class="font-headline font-bold text-on-surface mb-6">7-day Forecast</h3>
+<div class="flex items-end justify-between h-32 gap-2 mb-4 px-2">
+<div class="w-full bg-slate-800 rounded-t-lg h-[40%]"></div>
+<div class="w-full bg-slate-800 rounded-t-lg h-[65%]"></div>
+<div class="w-full bg-slate-800 rounded-t-lg h-[50%]"></div>
+<div class="w-full bg-slate-800 rounded-t-lg h-[85%]"></div>
+<div class="w-full bg-slate-800 rounded-t-lg h-[45%]"></div>
+<div class="w-full bg-slate-800 rounded-t-lg h-[30%]"></div>
+<div class="w-full bg-secondary rounded-t-lg h-[15%] shadow-sm"></div>
+</div>
+<div class="flex justify-between text-[10px] text-on-surface-variant uppercase font-bold tracking-tighter">
+<span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span>
+</div>
+</div>
+</div>
+</div>
+</main>
+
+<!-- Floating Widgets -->
+<div class="fixed bottom-8 right-8 flex flex-col items-end gap-4 z-50">
+<div class="bg-secondary text-white px-6 py-4 rounded-2xl shadow-xl flex items-center gap-4 border border-white/20">
+<span class="material-symbols-outlined !text-white">payments</span>
+<div class="flex flex-col">
+<span class="text-[10px] font-bold uppercase tracking-widest leading-none opacity-90">Saved Today</span>
+<span class="text-lg font-black font-headline tabular-nums" id="saved-today">$0.00</span>
+</div>
+</div>
+<div class="border border-outline p-5 rounded-2xl w-80 shadow-2xl bg-slate-900/60 backdrop-blur-md" id="cost-spike-alert">
+<div class="flex gap-4">
+<div class="w-10 h-10 rounded-full bg-tertiary/20 flex items-center justify-center flex-shrink-0">
+<span class="material-symbols-outlined !text-tertiary" style="font-variation-settings: 'FILL' 1;">error</span>
+</div>
+<div class="flex-1">
+<p class="text-sm font-bold text-on-surface" id="alert-title">Checking for anomalies...</p>
+<p class="text-xs text-on-surface-variant mt-1 leading-relaxed" id="alert-body">Connecting to live pipeline.</p>
+<div class="flex gap-2 mt-4">
+<button class="flex-1 py-2 bg-on-surface text-background text-[10px] font-black uppercase rounded-lg hover:bg-slate-300 transition-colors">Optimize</button>
+<button class="flex-1 py-2 bg-surface border border-outline text-on-surface-variant text-[10px] font-black uppercase rounded-lg hover:bg-slate-800 transition-colors" id="ignore-alert-btn">Ignore</button>
+</div>
+</div>
+</div>
+</div>
+</div>
+
+<script>
+    // ─── CONFIG ───────────────────────────────────────────────
+    const TELEMETRY_URL = "http://172.20.10.2:8000/telemetry";     // ✅ already correct
+    const EC2_URL       = "http://172.20.10.2:8000/api/ec2-status"; // 🆕 add this
+    const ANALYSIS_URL  = "http://172.20.10.2:8000/api/analysis";   // 🆕 add this
+    const ML_URL        = "http://172.20.10.3:8001/anomalies";      // ⏳ confirm ML server docs next   
+    // ──────────────────────────────────────────────────────────
+
+    async function fetchTelemetry() {
+        try {
+            const res = await fetch(TELEMETRY_URL);
+            const data = await res.json();
+            const records = data.records || [];
+
+            const running = records.filter(r => r.state === "running");
+            const idle = records.filter(r => r.cpu !== undefined && r.cpu < 15);
+            const avgCpu = running.length > 0
+                ? (running.reduce((s, r) => s + (r.cpu || 0), 0) / running.length).toFixed(1)
+                : 0;
+            const estSavings = (idle.length * 120).toLocaleString();
+
+            // Update metric cards
+            document.getElementById("active-instances").textContent = running.length || records.length;
+            document.getElementById("active-instances-sub").textContent = `${records.length} total instances tracked`;
+            document.getElementById("idle-instances").textContent = idle.length;
+            document.getElementById("idle-instances-sub").textContent = idle.length > 0 ? `${idle.length} underutilized` : "All instances healthy";
+            document.getElementById("avg-cpu").textContent = avgCpu;
+            document.getElementById("cpu-bar").style.width = avgCpu + "%";
+            document.getElementById("est-savings").textContent = "$" + estSavings;
+            document.getElementById("saved-today").textContent = "$" + (idle.length * 4.5).toFixed(2);
+
+            // Update live instances table
+            const tableDiv = document.getElementById("instances-table");
+            if (records.length === 0) {
+                tableDiv.innerHTML = '<div class="text-on-surface-variant text-sm text-center py-8">No instances found</div>';
+                return;
+            }
+            tableDiv.innerHTML = `
+                <table class="w-full text-sm">
+                    <thead>
+                        <tr class="text-on-surface-variant text-xs uppercase border-b border-outline">
+                            <th class="text-left pb-3 font-bold">Instance ID</th>
+                            <th class="text-left pb-3 font-bold">State</th>
+                            <th class="text-left pb-3 font-bold">CPU %</th>
+                            <th class="text-left pb-3 font-bold">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${records.map(r => `
+                            <tr class="border-b border-outline/50 hover:bg-slate-800/30 transition-colors">
+                                <td class="py-3 font-mono text-xs text-on-surface-variant">${r.instance_id}</td>
+                                <td class="py-3">
+                                    <span class="px-2 py-1 rounded-full text-[10px] font-bold ${r.state === 'running' ? 'bg-secondary/20 text-secondary' : 'bg-slate-700 text-on-surface-variant'}">
+                                        ${r.state}
+                                    </span>
+                                </td>
+                                <td class="py-3 font-bold ${r.cpu < 15 ? 'text-tertiary' : 'text-on-surface'}">${(r.cpu || 0).toFixed(2)}%</td>
+                                <td class="py-3 text-xs ${r.cpu < 15 ? 'text-tertiary font-bold' : 'text-secondary font-bold'}">
+                                    ${r.cpu < 15 ? '⚠ Idle' : '✓ Active'}
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+
+            // Update alert
+            if (idle.length > 0) {
+                document.getElementById("alert-title").textContent = `${idle.length} idle instance(s) detected`;
+                document.getElementById("alert-body").textContent = `CPU below 15% threshold. Potential savings: $${estSavings}/mo`;
+            } else {
+                document.getElementById("alert-title").textContent = "All instances healthy";
+                document.getElementById("alert-body").textContent = "No anomalies detected in current scan.";
+            }
+
+        } catch (err) {
+            console.error("Telemetry fetch failed:", err);
+            document.getElementById("instances-table").innerHTML =
+                '<div class="text-tertiary text-sm text-center py-8">⚠ Could not connect to telemetry API. Make sure backend is running.</div>';
+        }
+    }
+
+    async function fetchAnomalies() {
+        const feedDiv = document.getElementById("anomaly-feed");
+        try {
+            const res = await fetch(ML_URL);
+            const data = await res.json();
+            const anomalies = data.anomalies || [];
+
+            if (anomalies.length === 0) {
+                feedDiv.innerHTML = '<div class="text-secondary text-xs text-center py-4">✓ No anomalies detected</div>';
+                return;
+            }
+
+            feedDiv.innerHTML = anomalies.map(a => `
+                <div class="flex items-start gap-3 p-3 bg-background rounded-xl border border-outline mb-3">
+                    <div class="w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${a.is_anomaly ? 'bg-tertiary' : 'bg-secondary'}"></div>
+                    <div>
+                        <p class="text-xs font-bold text-on-surface font-mono">${a.instance_id}</p>
+                        <p class="text-[10px] text-on-surface-variant mt-0.5">${a.reason || 'Anomaly detected by ML model'}</p>
+                        <p class="text-[10px] text-tertiary font-bold mt-1">CPU: ${(a.cpu || 0).toFixed(2)}%</p>
+                    </div>
+                </div>
+            `).join('');
+        } catch (err) {
+            feedDiv.innerHTML = '<div class="text-on-surface-variant text-xs text-center py-4">ML endpoint not connected yet</div>';
+        }
+    }
+
+    async function fetchAllData() {
+        await fetchTelemetry();
+        await fetchAnomalies();
+    }
+
+    // CPU Slider
+    const slider = document.getElementById('cpu-slider');
+    const sliderLabel = document.getElementById('slider-label');
+    const optimizedPath = document.querySelector('path[stroke="#059669"]');
+    const optimizedFill = document.querySelector('path[fill="url(#colorOptimized)"]');
+    const currentPath = document.querySelector('path[stroke="#ef4444"]');
+    const currentFill = document.querySelector('path[fill="url(#colorCurrent)"]');
+
+    if (slider) {
+        slider.addEventListener('input', (e) => {
+            const value = parseInt(e.target.value);
+            sliderLabel.textContent = value + '%';
+            const baseThreshold = 15;
+            const optimizedShift = (value - baseThreshold) * 0.4;
+            const currentShift = (value - baseThreshold) * 0.1;
+            const transition = 'transform 0.1s ease-out';
+            [optimizedPath, optimizedFill, currentPath, currentFill].forEach((el, i) => {
+                if (el) {
+                    el.style.transition = transition;
+                    el.style.transform = `translateY(${i < 2 ? optimizedShift : currentShift}px)`;
+                }
+            });
+        });
+    }
+
+    // Alert dismiss
+    const alertBox = document.getElementById('cost-spike-alert');
+    const ignoreBtn = document.getElementById('ignore-alert-btn');
+    if (ignoreBtn && alertBox) {
+        ignoreBtn.addEventListener('click', () => alertBox.style.display = 'none');
+    }
+
+    // Sleep mode toggle
+    const userModeBtn = document.getElementById('user-mode-btn');
+    const autoModeBtn = document.getElementById('auto-mode-btn');
+    const manualInputs = document.getElementById('sleep-mode-manual-inputs');
+    const autoMsg = document.getElementById('sleep-mode-auto-msg');
+
+    function setSleepMode(mode) {
+        if (mode === 'user') {
+            userModeBtn.classList.add('bg-surface', 'shadow-sm', 'text-primary');
+            userModeBtn.classList.remove('text-on-surface-variant');
+            autoModeBtn.classList.remove('bg-surface', 'shadow-sm', 'text-primary');
+            autoModeBtn.classList.add('text-on-surface-variant');
+            manualInputs.classList.remove('hidden');
+            autoMsg.classList.add('hidden');
+        } else {
+            autoModeBtn.classList.add('bg-surface', 'shadow-sm', 'text-primary');
+            autoModeBtn.classList.remove('text-on-surface-variant');
+            userModeBtn.classList.remove('bg-surface', 'shadow-sm', 'text-primary');
+            userModeBtn.classList.add('text-on-surface-variant');
+            manualInputs.classList.add('hidden');
+            autoMsg.classList.remove('hidden');
+        }
+    }
+
+    if (userModeBtn && autoModeBtn) {
+        userModeBtn.addEventListener('click', () => setSleepMode('user'));
+        autoModeBtn.addEventListener('click', () => setSleepMode('auto'));
+    }
+
+    // Load data on startup + refresh every 30 seconds
+    fetchAllData();
+    setInterval(fetchAllData, 30000);
+</script>
+</body></html>
