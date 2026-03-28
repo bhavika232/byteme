@@ -12,6 +12,14 @@ CORS(app)
 def index():
     return send_from_directory('static', 'index.html')
 
+@app.route('/telemetry')
+def telemetry():
+    return jsonify({"status": "ok", "message": "telemetry running"})
+
+@app.route('/anomalies')
+def anomalies():
+    return jsonify({"anomalies": [], "status": "ok"})
+
 @app.route('/api/analysis')
 def get_analysis():
     result = run_analysis()
