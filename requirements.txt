@@ -81,7 +81,6 @@ pure_eval==0.2.3
 pycparser==2.22
 pydantic==2.12.5
 pydantic_core==2.41.5
-pygame==2.6.1
 Pygments==2.19.2
 python-dateutil==2.9.0.post0
 python-json-logger==3.3.0
