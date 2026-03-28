@@ -1,9 +1,4 @@
-fastapi
 flask
-flask-cors
-uvicorn[standard]
 gunicorn
-python-dotenv
-APScheduler
-boto3
+flask-cors
 requests
