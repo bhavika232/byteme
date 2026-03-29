@@ -1,8 +1,0 @@
-flask
-gunicorn
-flask-cors
-requests
-numpy
-pandas
-scikit-learn
-boto3
