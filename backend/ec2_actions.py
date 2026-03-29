@@ -1,123 +1,135 @@
 import boto3
 import time
 
-EC2_INSTANCE_ID = "i-0c46dfa3a28a086d0"
-REGION          = "us-east-2"
+REGION = "us-east-2"
+ec2    = boto3.client('ec2', region_name=REGION)
 
-ec2 = boto3.client('ec2', region_name=REGION)
-
-# Downsize map — what each instance type downsizes to
 DOWNSIZE_MAP = {
-    "t3.large":   "t3.medium",
-    "t3.medium":  "t3.small",
-    "t3.small":   "t3.micro",
-    "t3.micro":   "t3.micro",   # already smallest
-    "m5.xlarge":  "m5.large",
-    "m5.large":   "m5.medium",  # Note: m5.medium doesn't exist, maps to t3.large
-    "m4.xlarge":  "m4.large",
-    "m4.large":   "t3.large",
-    "c5.xlarge":  "c5.large",
-    "c5.large":   "t3.large",
+    "t3.large":  "t3.medium",  "t3.medium": "t3.small",
+    "t3.small":  "t3.micro",   "t3.micro":  "t3.micro",
+    "t2.large":  "t2.medium",  "t2.medium": "t2.small",
+    "t2.small":  "t2.micro",   "t2.micro":  "t2.micro",
+    "m5.xlarge": "m5.large",   "m5.large":  "t3.large",
+    "m4.xlarge": "m4.large",   "m4.large":  "t3.large",
+    "c5.xlarge": "c5.large",   "c5.large":  "t3.large",
 }
 
-def get_ec2_status():
+def get_all_instances():
+    """Returns all EC2 instances in the region — works with any number."""
     try:
-        response = ec2.describe_instances(InstanceIds=[EC2_INSTANCE_ID])
-        instance = response['Reservations'][0]['Instances'][0]
-        state    = instance['State']['Name']
-        itype    = instance['InstanceType']
-        print(f"EC2 status: {state}, type: {itype}")
-        return {"state": state, "instance_type": itype}
+        response  = ec2.describe_instances()
+        instances = []
+        for res in response['Reservations']:
+            for inst in res['Instances']:
+                instances.append({
+                    'instance_id':   inst['InstanceId'],
+                    'state':         inst['State']['Name'],
+                    'instance_type': inst['InstanceType'],
+                })
+        print(f"[ec2_actions] Found {len(instances)} instance(s)")
+        return instances
+    except Exception as e:
+        print(f"get_all_instances error: {e}")
+        return []
+
+def get_ec2_status(instance_id=None):
+    try:
+        kwargs   = {'InstanceIds': [instance_id]} if instance_id else {}
+        response = ec2.describe_instances(**kwargs)
+        inst     = response['Reservations'][0]['Instances'][0]
+        return {
+            'instance_id':   inst['InstanceId'],
+            'state':         inst['State']['Name'],
+            'instance_type': inst['InstanceType'],
+        }
     except Exception as e:
         print(f"get_ec2_status error: {e}")
-        return {"state": "unknown", "instance_type": "unknown"}
+        return {'state': 'unknown', 'instance_type': 'unknown'}
 
-def stop_ec2():
-    try:
-        response = ec2.stop_instances(InstanceIds=[EC2_INSTANCE_ID])
-        state    = response['StoppingInstances'][0]['CurrentState']['Name']
-        print(f"EC2 instance {EC2_INSTANCE_ID} stopping: {state}")
-        return state
-    except Exception as e:
-        print(f"stop_ec2 error: {e}")
-        raise
+def stop_ec2(instance_id):
+    response = ec2.stop_instances(InstanceIds=[instance_id])
+    state    = response['StoppingInstances'][0]['CurrentState']['Name']
+    print(f"Stopping {instance_id}: {state}")
+    return state
 
-def start_ec2():
-    try:
-        response = ec2.start_instances(InstanceIds=[EC2_INSTANCE_ID])
-        state    = response['StartingInstances'][0]['CurrentState']['Name']
-        print(f"EC2 instance {EC2_INSTANCE_ID} starting: {state}")
-        return state
-    except Exception as e:
-        print(f"start_ec2 error: {e}")
-        raise
+def start_ec2(instance_id):
+    response = ec2.start_instances(InstanceIds=[instance_id])
+    state    = response['StartingInstances'][0]['CurrentState']['Name']
+    print(f"Starting {instance_id}: {state}")
+    return state
 
-def wait_for_state(target_state, timeout=120):
-    """Poll EC2 until instance reaches target_state or timeout."""
-    print(f"Waiting for instance to reach '{target_state}'...")
+def wait_for_state(instance_id, target_state, timeout=120):
+    print(f"Waiting for {instance_id} → '{target_state}'...")
     elapsed = 0
     while elapsed < timeout:
-        status = get_ec2_status()
-        if status["state"] == target_state:
-            print(f"Instance is now '{target_state}'")
+        if get_ec2_status(instance_id)['state'] == target_state:
+            print(f"{instance_id} reached '{target_state}'")
             return True
         time.sleep(5)
         elapsed += 5
     print(f"Timeout waiting for '{target_state}'")
     return False
 
-def downsize_instance():
+def downsize_instance(instance_id=None):
     """
-    Stop instance → change to smaller type → restart.
-    Returns a dict with old_type, new_type, status.
+    Downsize a specific instance, or auto-pick the best idle candidate.
+    Fully dynamic — works with any number of instances in the account.
     """
     try:
-        # 1. Get current type and state
-        current = get_ec2_status()
-        current_type  = current["instance_type"]
-        current_state = current["state"]
+        # Auto-select instance if none given
+        if not instance_id:
+            instances = get_all_instances()
+            running   = [i for i in instances if i['state'] == 'running']
+            stopped   = [i for i in instances if i['state'] == 'stopped']
+            if running:
+                instance_id = running[0]['instance_id']
+            elif stopped:
+                instance_id = stopped[0]['instance_id']
+            else:
+                return {'success': False, 'message': 'No instances found to optimize.'}
 
-        target_type = DOWNSIZE_MAP.get(current_type)
+        current       = get_ec2_status(instance_id)
+        current_type  = current['instance_type']
+        current_state = current['state']
+        target_type   = DOWNSIZE_MAP.get(current_type)
+
         if not target_type or target_type == current_type:
             return {
-                "success": False,
-                "message": f"Instance is already at minimum type ({current_type}). No downsize possible.",
-                "old_type": current_type,
-                "new_type": current_type
+                'success':     False,
+                'message':     f"{instance_id} is already at minimum type ({current_type}).",
+                'old_type':    current_type,
+                'new_type':    current_type,
+                'instance_id': instance_id,
             }
 
-        print(f"Downsizing {EC2_INSTANCE_ID}: {current_type} → {target_type}")
+        print(f"Downsizing {instance_id}: {current_type} → {target_type}")
 
-        # 2. Stop instance if running
-        if current_state == "running":
-            stop_ec2()
-            stopped = wait_for_state("stopped", timeout=120)
-            if not stopped:
-                return {"success": False, "message": "Timed out waiting for instance to stop."}
+        if current_state == 'running':
+            stop_ec2(instance_id)
+            if not wait_for_state(instance_id, 'stopped'):
+                return {'success': False, 'message': f'Timed out stopping {instance_id}.'}
 
-        # 3. Modify instance type
         ec2.modify_instance_attribute(
-            InstanceId=EC2_INSTANCE_ID,
-            InstanceType={"Value": target_type}
+            InstanceId=instance_id,
+            InstanceType={'Value': target_type}
         )
-        print(f"Instance type changed to {target_type}")
+        print(f"{instance_id} type changed to {target_type}")
 
-        # 4. Restart if it was running before
-        if current_state == "running":
-            start_ec2()
-            wait_for_state("running", timeout=120)
+        if current_state == 'running':
+            start_ec2(instance_id)
+            wait_for_state(instance_id, 'running')
 
         return {
-            "success":   True,
-            "message":   f"Successfully downsized from {current_type} to {target_type}.",
-            "old_type":  current_type,
-            "new_type":  target_type,
-            "instance_id": EC2_INSTANCE_ID
+            'success':     True,
+            'message':     f"Downsized {instance_id}: {current_type} → {target_type}.",
+            'old_type':    current_type,
+            'new_type':    target_type,
+            'instance_id': instance_id,
         }
 
     except Exception as e:
         print(f"downsize_instance error: {e}")
-        return {"success": False, "message": str(e)}
+        return {'success': False, 'message': str(e)}
 
-if __name__ == "__main__":
-    print(get_ec2_status())
+if __name__ == '__main__':
+    print(get_all_instances())
