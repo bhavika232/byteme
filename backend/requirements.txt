@@ -6,3 +6,4 @@ scikit-learn
 requests
 pydantic
 python-dotenv
+boto3
