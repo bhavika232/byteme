@@ -1,0 +1,277 @@
+{
+  "metrics": [
+    {
+      "date": "2026-03-28",
+      "cpu": 80.0,
+      "storage": 57.1,
+      "cost": 332.0
+    },
+    {
+      "date": "2026-03-28",
+      "cpu": 90.2,
+      "storage": 61.8,
+      "cost": 374.33
+    },
+    {
+      "date": "2026-03-28",
+      "cpu": 15.5,
+      "storage": 58.7,
+      "cost": 64.33
+    },
+    {
+      "date": "2026-03-28",
+      "cpu": 96.1,
+      "storage": 46.7,
+      "cost": 398.81
+    },
+    {
+      "date": "2026-03-28",
+      "cpu": 37.7,
+      "storage": 50.1,
+      "cost": 156.46
+    },
+    {
+      "date": "2026-03-28",
+      "cpu": 39.4,
+      "storage": 58.8,
+      "cost": 163.51
+    },
+    {
+      "date": "2026-03-28",
+      "cpu": 13.8,
+      "storage": 50.4,
+      "cost": 57.27
+    },
+    {
+      "date": "2026-03-28",
+      "cpu": 93.3,
+      "storage": 56.4,
+      "cost": 387.19
+    },
+    {
+      "date": "2026-03-28",
+      "cpu": 25.9,
+      "storage": 54.6,
+      "cost": 107.48
+    },
+    {
+      "date": "2026-03-28",
+      "cpu": 23.4,
+      "storage": 61.0,
+      "cost": 97.11
+    },
+    {
+      "date": "2026-03-28",
+      "cpu": 32.1,
+      "storage": 48.8,
+      "cost": 133.22
+    },
+    {
+      "date": "2026-03-28",
+      "cpu": 24.4,
+      "storage": 63.7,
+      "cost": 101.26
+    },
+    {
+      "date": "2026-03-28",
+      "cpu": 34.1,
+      "storage": 47.0,
+      "cost": 141.52
+    },
+    {
+      "date": "2026-03-28",
+      "cpu": 15.5,
+      "storage": 44.9,
+      "cost": 64.33
+    },
+    {
+      "date": "2026-03-28",
+      "cpu": 92.4,
+      "storage": 61.8,
+      "cost": 383.46
+    },
+    {
+      "date": "2026-03-28",
+      "cpu": 94.3,
+      "storage": 57.3,
+      "cost": 391.34
+    },
+    {
+      "date": "2026-03-28",
+      "cpu": 37.7,
+      "storage": 59.4,
+      "cost": 156.46
+    },
+    {
+      "date": "2026-03-28",
+      "cpu": 31.6,
+      "storage": 42.7,
+      "cost": 131.14
+    },
+    {
+      "date": "2026-03-28",
+      "cpu": 90.1,
+      "storage": 51.8,
+      "cost": 373.91
+    },
+    {
+      "date": "2026-03-28",
+      "cpu": 88.6,
+      "storage": 64.0,
+      "cost": 367.69
+    },
+    {
+      "date": "2026-03-28",
+      "cpu": 12.3,
+      "storage": 45.1,
+      "cost": 51.05
+    },
+    {
+      "date": "2026-03-28",
+      "cpu": 13.2,
+      "storage": 57.2,
+      "cost": 54.78
+    },
+    {
+      "date": "2026-03-28",
+      "cpu": 26.8,
+      "storage": 44.9,
+      "cost": 111.22
+    },
+    {
+      "date": "2026-03-28",
+      "cpu": 90.9,
+      "storage": 51.3,
+      "cost": 377.24
+    },
+    {
+      "date": "2026-03-28",
+      "cpu": 98.6,
+      "storage": 48.8,
+      "cost": 409.19
+    },
+    {
+      "date": "2026-03-28",
+      "cpu": 19.9,
+      "storage": 58.7,
+      "cost": 82.58
+    },
+    {
+      "date": "2026-03-28",
+      "cpu": 31.2,
+      "storage": 61.0,
+      "cost": 129.48
+    },
+    {
+      "date": "2026-03-28",
+      "cpu": 88.3,
+      "storage": 42.6,
+      "cost": 366.44
+    },
+    {
+      "date": "2026-03-28",
+      "cpu": 91.5,
+      "storage": 57.9,
+      "cost": 379.73
+    },
+    {
+      "date": "2026-03-28",
+      "cpu": 28.0,
+      "storage": 55.6,
+      "cost": 116.2
+    }
+  ],
+  "anomalies": [
+    {
+      "date": "2026-03-28",
+      "cost": 332.0,
+      "cpu": 80.0,
+      "severity": "critical",
+      "impact": "high",
+      "score": 8,
+      "explanation": "Cost spiked to \u20b9332 with CPU at 80%. This is 1.5\u00d7 the daily average. Impact classified as high."
+    },
+    {
+      "date": "2026-03-28",
+      "cost": 409.19,
+      "cpu": 98.6,
+      "severity": "critical",
+      "impact": "severe",
+      "score": 10,
+      "explanation": "Cost spiked to \u20b9409 with CPU at 99%. This is 1.9\u00d7 the daily average. Impact classified as severe."
+    }
+  ],
+  "suggestions": [
+    {
+      "type": "Missing Billing Alert",
+      "icon": "\ud83d\udd14",
+      "message": "2 spikes went undetected. Add CloudWatch billing alarms.",
+      "action": "Set \u20b9500/day alert threshold",
+      "saving": "Prevent future overruns"
+    },
+    {
+      "type": "Reserved Instances",
+      "icon": "\ud83d\udccb",
+      "message": "Stable baseline workload detected. Reserved Instances save on predictable usage.",
+      "action": "Commit to 1-year Reserved Instance",
+      "saving": "Up to 30%"
+    }
+  ],
+  "forecast": [
+    {
+      "date": "2026-03-29",
+      "projected": 328.62,
+      "optimized": 230.03,
+      "risk": "high"
+    },
+    {
+      "date": "2026-03-30",
+      "projected": 347.21,
+      "optimized": 243.05,
+      "risk": "high"
+    },
+    {
+      "date": "2026-03-31",
+      "projected": 365.8,
+      "optimized": 256.06,
+      "risk": "high"
+    },
+    {
+      "date": "2026-04-01",
+      "projected": 384.39,
+      "optimized": 269.07,
+      "risk": "high"
+    },
+    {
+      "date": "2026-04-02",
+      "projected": 402.98,
+      "optimized": 282.09,
+      "risk": "high"
+    },
+    {
+      "date": "2026-04-03",
+      "projected": 421.57,
+      "optimized": 295.1,
+      "risk": "high"
+    },
+    {
+      "date": "2026-04-04",
+      "projected": 440.16,
+      "optimized": 308.11,
+      "risk": "high"
+    }
+  ],
+  "summary": {
+    "total_days": 30,
+    "anomaly_count": 2,
+    "avg_cost": 215.36,
+    "total_cost": 6460.73,
+    "potential_saving": 1938.22,
+    "avg_cpu": 51.9,
+    "idle_count": 15,
+    "highest_spike": {
+      "date": "2026-03-28",
+      "cost": 409.19
+    }
+  }
+}
