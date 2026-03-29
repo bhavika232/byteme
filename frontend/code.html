@@ -57,6 +57,62 @@
     @keyframes spin  { to{transform:rotate(360deg)} }
     .spinning { animation:spin 0.7s linear infinite; display:inline-block; }
     .risk-bar { height:6px; border-radius:9999px; transition:width 0.7s; }
+    .threshold-font { font-family: Manrope, sans-serif; font-weight:800; letter-spacing:0.04em; }
+
+    /* ── Floating dock ───────────────────────────────────────── */
+    #floating-dock {
+        position: fixed;
+        bottom: 2rem;
+        right: 2rem;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 0.75rem;
+        z-index: 50;
+        pointer-events: none;
+    }
+
+    /* Toast */
+    #cost-spike-alert {
+        pointer-events: all;
+        width: 20rem;
+        border: 1px solid var(--outline);
+        padding: 1.25rem;
+        border-radius: 1rem;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+        backdrop-filter: blur(12px);
+        background: var(--surface);
+        /* Animate in/out */
+        transition: opacity 0.35s ease, transform 0.35s cubic-bezier(0.34,1.56,0.64,1), max-height 0.35s ease;
+        max-height: 400px;
+        opacity: 1;
+        transform: translateY(0) scale(1);
+        overflow: hidden;
+    }
+    #cost-spike-alert.hidden-toast {
+        opacity: 0;
+        transform: translateY(12px) scale(0.97);
+        max-height: 0;
+        padding: 0;
+        pointer-events: none;
+        border-width: 0;
+    }
+
+    /* Saved Today widget */
+    #saved-today-widget {
+        pointer-events: all;
+        backdrop-filter: blur(14px);
+        background: rgba(4,80,66,0.55);
+        border: 1px solid rgba(255,255,255,0.13);
+        border-radius: 1rem;
+        padding: 0.7rem 1.2rem;
+        display: flex;
+        align-items: center;
+        gap: 0.7rem;
+        box-shadow: 0 4px 24px rgba(0,0,0,0.25);
+        transition: background 0.3s, transform 0.4s cubic-bezier(0.34,1.56,0.64,1);
+    }
+    html.light #saved-today-widget { background: rgba(4,80,66,0.45); }
 </style>
 </head>
 <body>
@@ -116,7 +172,6 @@
     <div class="mb-6 flex items-center gap-2 text-xs text-on-surface-variant">
         <span class="material-symbols-outlined !text-xs">schedule</span>
         Last updated: <span id="last-updated">—</span>
-        <span class="ml-2 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide border border-outline" style="background:var(--surface)">Live Feed</span>
     </div>
 
     <!-- KPI Cards -->
@@ -213,7 +268,7 @@
                 <div class="rounded-xl p-6 border border-outline" style="background:var(--bg)">
                     <div class="flex justify-between mb-3">
                         <label class="text-sm font-semibold text-on-surface">CPU Idle Threshold</label>
-                        <span class="font-bold" style="color:var(--primary)" id="slider-label">15%</span>
+                        <span class="threshold-font" style="color:var(--primary);font-size:0.95rem" id="slider-label">15%</span>
                     </div>
                     <input class="w-full h-1.5 rounded-full appearance-none cursor-pointer" id="cpu-slider" max="100" min="0" type="range" value="15" style="background:var(--surface2)"/>
                     <div class="flex justify-between mt-2 text-[10px] text-on-surface-variant uppercase tracking-widest font-bold">
@@ -347,16 +402,10 @@
     </div>
 </main>
 
-<!-- Floating -->
-<div class="fixed bottom-8 right-8 flex flex-col items-end gap-4 z-50">
-    <div class="text-white px-6 py-4 rounded-2xl shadow-xl flex items-center gap-4 border border-white/20" style="background:var(--green)">
-        <span class="material-symbols-outlined !text-white">payments</span>
-        <div class="flex flex-col">
-            <span class="text-[10px] font-bold uppercase tracking-widest opacity-90">Saved Today</span>
-            <span class="text-lg font-black font-headline tabular-nums" id="saved-today">₹0.00</span>
-        </div>
-    </div>
-    <div class="border border-outline p-5 rounded-2xl w-80 shadow-2xl backdrop-blur-md" id="cost-spike-alert" style="display:none;background:var(--surface)">
+<!-- ── Floating dock: toast stacks above Saved Today ── -->
+<div id="floating-dock">
+    <!-- Toast (top of stack when visible) -->
+    <div class="border border-outline p-5 rounded-2xl w-80 shadow-2xl backdrop-blur-md hidden-toast" id="cost-spike-alert" style="background:var(--surface)">
         <div class="flex gap-4">
             <div class="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0" style="background:color-mix(in srgb,var(--red) 20%,transparent)">
                 <span class="material-symbols-outlined" style="color:var(--red);font-variation-settings:'FILL' 1">error</span>
@@ -376,6 +425,15 @@
             </div>
         </div>
     </div>
+
+    <!-- Saved Today (always at bottom of dock) -->
+    <div id="saved-today-widget">
+        <span class="material-symbols-outlined" style="color:rgba(255,255,255,0.9);font-size:1.1rem">payments</span>
+        <div class="flex flex-col">
+            <span style="font-size:9px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:rgba(255,255,255,0.8)">Saved Today</span>
+            <span id="saved-today" style="font-family:Manrope,sans-serif;font-weight:900;font-size:1.05rem;color:#fff;letter-spacing:-0.01em">₹0.00</span>
+        </div>
+    </div>
 </div>
 
 <script>
@@ -387,11 +445,19 @@ const OPTIMIZE_URL   = '/api/optimize';
 const OPT_STATUS_URL = '/api/optimize/status';
 
 let cachedMetrics    = [];
-let currentThreshold = 15;
+let currentThreshold = parseInt(document.getElementById('cpu-slider')?.value || 15);
 
 // ── Helpers ───────────────────────────────────────
 const inr = n => '₹' + Number(n).toLocaleString('en-IN', {minimumFractionDigits:2, maximumFractionDigits:2});
 const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+
+// ── Toast show/hide (controls the dock layout) ────
+function showToast() {
+    document.getElementById('cost-spike-alert').classList.remove('hidden-toast');
+}
+function hideToast() {
+    document.getElementById('cost-spike-alert').classList.add('hidden-toast');
+}
 
 // ── Theme toggle ──────────────────────────────────
 const html = document.documentElement;
@@ -419,7 +485,6 @@ function renderChart(metrics, thr) {
     document.getElementById('cy2').textContent = inr(maxC*0.5);
     document.getElementById('cy1').textContent = inr(maxC*0.25);
 
-    // threshold line
     const thrY = H - (thr / 100) * H * 0.85;
     document.getElementById('thr-line').setAttribute('y1', thrY);
     document.getElementById('thr-line').setAttribute('y2', thrY);
@@ -491,21 +556,18 @@ function updateRisk(summary) {
         document.getElementById(descId).textContent     = desc;
     }
 
-    // Financial
     const finScore = ac>=3||ratio>3 ? 100 : ac>=2||ratio>2 ? 70 : ac>=1||ratio>1.5 ? 40 : 15;
     const finColor = finScore>=70 ? red : finScore>=40 ? '#f97316' : grn;
     setRisk('rf-bar','rf-label','rf-desc', finScore,
         finScore>=70?'HIGH':finScore>=40?'MEDIUM':'LOW',
         `${ac} anomaly spike(s) · highest ${inr(spike)}`, finColor);
 
-    // Performance
     const perfScore = avgCpu>80 ? 90 : avgCpu>60 ? 60 : avgCpu>40 ? 35 : 15;
     const perfColor = perfScore>=60 ? red : perfScore>=35 ? '#f97316' : grn;
     setRisk('rp-bar','rp-label','rp-desc', perfScore,
         perfScore>=60?'HIGH':perfScore>=35?'MEDIUM':'LOW',
         `Avg CPU ${avgCpu}% over last 30 days`, perfColor);
 
-    // Reliability
     const relScore = idle>=5 ? 80 : idle>=3 ? 55 : idle>=1 ? 30 : 10;
     const relColor = relScore>=55 ? red : relScore>=30 ? '#f97316' : grn;
     setRisk('rr-bar','rr-label','rr-desc', relScore,
@@ -537,7 +599,6 @@ function renderAnomalyCards(anomalies) {
                 <span class="material-symbols-outlined !text-on-surface-variant !text-sm">arrow_forward</span>
                 <div class="text-center flex-1"><p class="text-[10px] uppercase font-bold" style="color:${red}">Cost</p><p class="text-sm font-bold" style="color:${red}">${inr(a.cost)}</p></div>
             </div>
-            <button class="w-full py-2.5 bg-primary hover:bg-primary-hover text-white text-xs font-bold rounded-lg opacity-0 group-hover:opacity-100 transition-all">Investigate</button>
         </div>`).join('');
 }
 
@@ -622,7 +683,7 @@ async function runOptimize() {
 
 // ── Fetch analysis ────────────────────────────────
 async function fetchAnalysis(thr) {
-    const res  = await fetch(`${ANALYSIS_URL}?threshold=${thr}`);
+    const res  = await fetch(ANALYSIS_URL);
     const data = await res.json();
     const S    = data.summary     || {};
     const A    = data.anomalies   || [];
@@ -642,12 +703,13 @@ async function fetchAnalysis(thr) {
     document.getElementById('stat-anomaly-count').textContent = S.anomaly_count ?? 0;
     document.getElementById('stat-idle-threshold').textContent= `${S.idle_count??0} @ ${thr}%`;
 
-    const toast = document.getElementById('cost-spike-alert');
     if (A.length) {
         document.getElementById('alert-title').textContent = `${A.length} anomaly(s) detected`;
         document.getElementById('alert-body').textContent  = A[0].explanation || `Savings: ${inr(S.potential_saving)}/mo`;
-        toast.style.display = '';
-    } else { toast.style.display = 'none'; }
+        showToast();
+    } else {
+        hideToast();
+    }
 
     renderChart(M, thr);
     renderForecast(F);
@@ -672,24 +734,26 @@ async function fetchAllData() {
     try {
         await Promise.all([fetchAnalysis(currentThreshold), fetchTelemetry()]);
         document.getElementById('last-updated').textContent =
-            new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+            new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:true});
     } catch(e) { console.error(e); }
     finally { icon.classList.remove('spinning'); }
 }
 
-// ── Slider — debounced backend call ───────────────
-let sliderTimer = null;
+// ── Slider ────────────────────────────────────────
 document.getElementById('cpu-slider').addEventListener('input', e => {
     currentThreshold = parseInt(e.target.value);
-    document.getElementById('slider-label').textContent = currentThreshold + '%';
-    if (cachedMetrics.length) renderChart(cachedMetrics, currentThreshold);
-    clearTimeout(sliderTimer);
-    sliderTimer = setTimeout(() => fetchAnalysis(currentThreshold), 600);
+    const thr = currentThreshold;
+    document.getElementById('slider-label').textContent = thr + '%';
+    if (cachedMetrics.length) renderChart(cachedMetrics, thr);
+    document.getElementById('stat-idle-threshold').textContent =
+        cachedMetrics.length
+            ? cachedMetrics.filter(m => (m.cpu ?? 0) < thr).length + ' @ ' + thr + '%'
+            : '— @ ' + thr + '%';
 });
 
 // ── Alert dismiss ─────────────────────────────────
 document.getElementById('ignore-alert-btn').addEventListener('click', () => {
-    document.getElementById('cost-spike-alert').style.display = 'none';
+    hideToast();
 });
 
 // ── Sleep mode ────────────────────────────────────
